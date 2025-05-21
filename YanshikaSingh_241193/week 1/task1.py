@@ -8,9 +8,9 @@ from PIL import Image
 from pyparsing import C
 
 root = Tk()
-root.withdraw()  # Hide the main window
+root.withdraw()  
 file_path = filedialog.askopenfilename()
-image = Image.open(r"C:/Users/HP/Documents/image_descon.jpg")  # Note the `r` before the string
+image = Image.open(r"C:/Users/HP/Documents/image_descon.jpg")  
 
 image = cv2.imread(r"C:/Users/HP/Documents/image_descon.jpg")
 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
