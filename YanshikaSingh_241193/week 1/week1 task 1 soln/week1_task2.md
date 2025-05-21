@@ -13,7 +13,7 @@
 
 > Source: [G2 comparison](https://www.g2.com/compare/opencv-vs-scikit-image)
 
-## Advantages of Scikit-Image
+## Advantages of Scikit-Image  
 
 - **User-friendly** and easier for beginners (source: Google search).
 - Focuses on **image processing** (e.g., filtering, segmentation, etc.).
