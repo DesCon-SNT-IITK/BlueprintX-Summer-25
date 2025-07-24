@@ -2,8 +2,9 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:BluePrintX/RedrawScreen.dart';
-import 'package:BluePrintX/RecognizerScreen.dart';
+import 'package:DesCon/RedrawScreen.dart';
+import 'package:DesCon/RecognizerScreen.dart';
+import 'package:DesCon/CreditsScreen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -41,9 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
       await _startCam(_cams![_idx]);
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -58,9 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _ctrl?.dispose();
     _ctrl = CameraController(cam, ResolutionPreset.medium);
     _initCtrl = _ctrl!.initialize().then((_) {
-      if (mounted) {
-        setState(() {});
-      }
+      if (mounted) setState(() {});
     }).catchError((e) {
       if (mounted) {
         setState(() {
@@ -77,9 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _isLoading = true);
     _idx = (_idx + 1) % _cams!.length;
     await _startCam(_cams![_idx]);
-    if (mounted) {
-      setState(() => _isLoading = false);
-    }
+    if (mounted) setState(() => _isLoading = false);
   }
 
   Future<void> _pick(BuildContext context, ImageSource source) async {
@@ -89,27 +84,17 @@ class _HomeScreenState extends State<HomeScreen> {
       final xfile = await _picker.pickImage(source: source, imageQuality: 80);
       if (xfile != null && mounted) {
         final file = File(xfile.path);
-        debugPrint('Picked image: ${file.path}, exists: ${file.existsSync()}');
         if (file.existsSync()) {
           setState(() => _selectedImage = file);
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => RedrawScreen(originalImage: file)),
-          );
+          _navigateBasedOnAction(context, file);
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to load image')),
-          );
+          _showSnackBar(context, 'Failed to load image');
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking image: $e')),
-      );
+      _showSnackBar(context, 'Error picking image: $e');
     }
-    if (mounted) {
-      setState(() => _isLoading = false);
-    }
+    if (mounted) setState(() => _isLoading = false);
   }
 
   Future<void> _snap(BuildContext context) async {
@@ -118,26 +103,56 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final xfile = await _ctrl!.takePicture();
       final file = File(xfile.path);
-      debugPrint('Captured image: ${file.path}, exists: ${file.existsSync()}');
       if (file.existsSync() && mounted) {
         setState(() => _selectedImage = file);
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => RedrawScreen(originalImage: file)),
-        );
+        _navigateBasedOnAction(context, file);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to capture image')),
-        );
+        _showSnackBar(context, 'Failed to capture image');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error capturing image: $e')),
-      );
+      _showSnackBar(context, 'Error capturing image: $e');
     }
-    if (mounted) {
-      setState(() => _isLoading = false);
+    if (mounted) setState(() => _isLoading = false);
+  }
+
+  void _navigateBasedOnAction(BuildContext context, File file) async {
+    final action = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Choose Action'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('Enhance Blueprint'),
+              onTap: () => Navigator.pop(context, 'enhance'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.text_fields),
+              title: const Text('Recognize Text'),
+              onTap: () => Navigator.pop(context, 'recognize'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (action == 'enhance') {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => RedrawScreen(originalImage: file)));
+    } else if (action == 'recognize') {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => RecognizerScreen(file)));
     }
+  }
+
+  void _navigateToCredits(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CreditsScreen()),
+    );
+  }
+
+  void _showSnackBar(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -149,10 +164,20 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('DesCon Hub', style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.teal,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.info_outline, color: Colors.white),
+            onPressed: () => _navigateToCredits(context),
+            tooltip: 'Credits',
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           children: [
-            _TopBar(selectedImage: _selectedImage),
             Expanded(
               child: _CamView(
                 ctrl: _ctrl,
@@ -197,7 +222,6 @@ class _CamView extends StatelessWidget {
             Text(
               'Initializing camera...',
               style: TextStyle(fontSize: 16, color: Colors.grey),
-              semanticsLabel: 'Initializing camera',
             ),
           ],
         ),
@@ -214,7 +238,6 @@ class _CamView extends StatelessWidget {
               errorMessage!,
               style: const TextStyle(fontSize: 16, color: Colors.red),
               textAlign: TextAlign.center,
-              semanticsLabel: errorMessage,
             ),
           ],
         ),
@@ -225,146 +248,18 @@ class _CamView extends StatelessWidget {
         child: Text(
           'Camera unavailable',
           style: TextStyle(fontSize: 16, color: Colors.grey),
-          semanticsLabel: 'Camera unavailable',
         ),
       );
     }
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return Stack(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: SizedBox(
-                width: constraints.maxWidth,
-                child: CameraPreview(
-                  ctrl!,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.white, width: 1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _TopBar extends StatelessWidget {
-  final File? selectedImage;
-
-  const _TopBar({this.selectedImage, super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 4,
-      margin: const EdgeInsets.all(8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Container(
-        height: 70,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.blueAccent, Colors.deepPurple],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: CameraPreview(
+        ctrl!,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.white, width: 1),
+            borderRadius: BorderRadius.circular(12),
           ),
-          borderRadius: BorderRadius.all(Radius.circular(12)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _IconTxt(
-              icon: Icons.scanner,
-              txt: 'Scan',
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Scan feature coming soon!')),
-                );
-              },
-            ),
-            _IconTxt(
-              icon: Icons.document_scanner,
-              txt: 'Recognizer',
-              onTap: () {
-                if (selectedImage == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please select an image first')),
-                  );
-                  return;
-                }
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => RecognizerScreen(selectedImage!),
-                  ),
-                );
-              },
-            ),
-            _IconTxt(
-              icon: Icons.assignment_sharp,
-              txt: 'Enhance',
-              onTap: () {
-                if (selectedImage == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please select an image first')),
-                  );
-                  return;
-                }
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => RedrawScreen(originalImage: selectedImage!),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _IconTxt extends StatelessWidget {
-  final IconData icon;
-  final String txt;
-  final VoidCallback? onTap;
-
-  const _IconTxt({required this.icon, required this.txt, this.onTap, super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 30,
-              color: Colors.white,
-              semanticLabel: txt,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              txt,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-              semanticsLabel: txt,
-            ),
-          ],
         ),
       ),
     );
@@ -395,7 +290,7 @@ class _BotBar extends StatelessWidget {
         height: 80,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.blueAccent, Colors.deepPurple],
+            colors: [Colors.teal, Colors.grey],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
